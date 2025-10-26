@@ -1,0 +1,35 @@
+services:
+  mongo:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: secret123
+      MONGO_INITDB_DATABASE: mydatabase
+    volumes:
+      - mongo-data:/data/db
+    # Tùy chọn: Thêm restart policy để tự động khởi động lại
+    restart: unless-stopped
+
+  mongo-express:
+    image: mongo-express:latest
+    ports:
+      - "8081:8081"
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongo
+      - ME_CONFIG_MONGODB_PORT=27017
+      - ME_CONFIG_BASICAUTH_USERNAME=admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=password
+      # Tùy chọn: Bật auth MongoDB nếu cần
+      # - ME_CONFIG_MONGODB_AUTH=1
+      # - ME_CONFIG_MONGODB_AUTH_DATABASE=admin
+      # - ME_CONFIG_MONGODB_USERNAME=your_mongo_user
+      # - ME_CONFIG_MONGODB_PASSWORD=your_mongo_pass
+    depends_on:
+      - mongo
+    # Tùy chọn: Thêm restart policy
+    restart: unless-stopped
+
+volumes:
+  mongo-data:
