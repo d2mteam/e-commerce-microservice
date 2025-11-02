@@ -4,6 +4,11 @@ server:
 spring:
   application:
     name: eureka-server
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/realms/ecommerce
 
 eureka:
   client:
@@ -11,3 +16,9 @@ eureka:
     fetch-registry: false
   server:
     eviction-interval-timer-in-ms: 60000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
