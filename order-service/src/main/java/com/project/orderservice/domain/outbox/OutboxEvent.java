@@ -1,6 +1,5 @@
 package com.project.orderservice.domain.outbox;
 
-import lombok.Builder;
 import lombok.Data;
 
 import java.time.Instant;

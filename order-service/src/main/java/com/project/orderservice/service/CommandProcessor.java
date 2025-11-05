@@ -1,4 +1,4 @@
-package com.project.orderservice.service;
-
-public class d {
-}
+//package com.project.orderservice.service;
+//
+//public class d {
+//}
