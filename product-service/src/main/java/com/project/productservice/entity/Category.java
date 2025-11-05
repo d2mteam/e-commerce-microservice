@@ -1,18 +1,27 @@
 package com.project.productservice.entity;
 
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
+import lombok.NoArgsConstructor;
 
+@Entity
+@Table(name = "categories")
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
-@Document(collection = "categories")
 public class Category {
+
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "category_id")
     private Long categoryId;
 
+    @Column(name = "category_name", nullable = false, unique = true)
     private String categoryName;
 
+    @Column(name = "category_description")
     private String categoryDescription;
 }
