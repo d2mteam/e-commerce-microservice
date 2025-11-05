@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: order-service
+  datasource:
+    url: jdbc:postgresql://localhost:1000/order-service
+    username: admin
+    password: admin123
+logging:
+  level:
+    org:
+      springframework:
+        jdbc:
+          core: DEBUG
