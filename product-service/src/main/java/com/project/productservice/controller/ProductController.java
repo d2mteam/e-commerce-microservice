@@ -5,10 +5,7 @@ import com.project.productservice.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Optional;
@@ -22,11 +19,62 @@ public class ProductController {
     private ProductService productService;
 
     /**
+     * TẠO MỚI (POST /api/products)
+     * Hàm này gọi service, service sẽ lưu vào CẢ SQL và Elasticsearch.
+     */
+    @PostMapping
+    public ResponseEntity<Product> createProduct(@RequestBody Product product) {
+        Product newProduct = productService.createProduct(product);
+        return ResponseEntity.status(HttpStatus.CREATED).body(newProduct);
+    }
+
+    /**
+     * CẬP NHẬT (PUT /api/products/{id})
+     * Hàm này gọi service, service sẽ cập nhật CẢ SQL và Elasticsearch.
+     */
+    @PutMapping("/{id}")
+    public ResponseEntity<Product> updateProduct(@PathVariable UUID id, @RequestBody Product productDetails) {
+        Product updatedProduct = productService.updateProduct(id, productDetails);
+        return ResponseEntity.ok(updatedProduct);
+    }
+
+    /**
+     * XÓA (DELETE /api/products/{id})
+     * Hàm này gọi service, service sẽ xóa ở CẢ SQL và Elasticsearch.
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteProduct(@PathVariable UUID id) {
+        productService.deleteProduct(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * LẤY THEO ID (GET /api/products/{id})
+     * Chỉ dùng SQL (nguồn dữ liệu chính)
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<Product> getProductById(@PathVariable UUID id) {
+        Product product = productService.getProductById(id);
+        return ResponseEntity.ok(product);
+    }
+
+    /**
      * Gọi nó bằng URL: /api/products/search/ids?name=keyword
      */
     @GetMapping("/search/ids")
     public List<UUID> searchProductIdsByName(@RequestParam String name) {
         return productService.searchProductIdsByName(name);
+    }
+
+    /**
+     * TÌM KIẾM DÙNG ELASTICSEARCH
+     * Gọi nó bằng URL: /api/products/search?name=keyword
+     * Trả về danh sách Product đầy đủ.
+     */
+    @GetMapping("/search")
+    public ResponseEntity<List<Product>> searchProducts(@RequestParam String name) {
+        List<Product> products = productService.searchProductsByName(name);
+        return ResponseEntity.ok(products);
     }
 
     @GetMapping("/by-name")
