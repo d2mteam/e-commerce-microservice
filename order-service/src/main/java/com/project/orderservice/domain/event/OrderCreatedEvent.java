@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NonNull;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -15,6 +16,7 @@ import java.util.UUID;
 public class OrderCreatedEvent extends Event {
     private final UUID userId;
     private final List<OrderDetail> orderDetails;
+    private final OffsetDateTime createdAt;
 
     @JsonCreator
     @Builder
@@ -22,11 +24,13 @@ public class OrderCreatedEvent extends Event {
             @JsonProperty("aggregateId") UUID aggregateId,
             @JsonProperty("version") int version,
             @JsonProperty("userId") UUID userId,
-            @JsonProperty("orderDetails") List<OrderDetail> orderDetails
+            @JsonProperty("orderDetails") List<OrderDetail> orderDetails,
+            @JsonProperty("createdAt") OffsetDateTime createdAt
     ) {
         super(aggregateId, version);
         this.userId = userId;
         this.orderDetails = orderDetails;
+        this.createdAt = createdAt;
     }
 
     @Override

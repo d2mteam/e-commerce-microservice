@@ -8,10 +8,12 @@ import lombok.Getter;
 import java.util.UUID;
 
 @Getter
-public class ConfirmOrderCommand extends Command {
+public class StartShippingCommand extends Command {
+    private final UUID shipmentId;
+
     @Builder
-    public ConfirmOrderCommand(UUID aggregateId) {
+    public StartShippingCommand(UUID aggregateId, UUID shipmentId) {
         super(OrderAggregate.class.getSimpleName(), aggregateId);
+        this.shipmentId = shipmentId;
     }
 }
-

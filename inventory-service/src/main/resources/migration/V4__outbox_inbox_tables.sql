@@ -10,6 +10,7 @@ CREATE TABLE outbox_event
     event_version  int         NOT NULL,
     payload        jsonb       NOT NULL,
 --     source_service text        NOT NULL,
+
     created_at     timestamptz NOT NULL DEFAULT now(),
     sent_at        timestamptz,
     retry_count    int         NOT NULL DEFAULT 0,

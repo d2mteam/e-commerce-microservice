@@ -1,0 +1,14 @@
+server:
+  port: 2000
+spring:
+  application:
+    name: inventory-service
+#  security:
+#    oauth2:
+#      resourceserver:
+#        jwt:
+#          issuer-uri: http://localhost:8080/realms/ecommerce
+  datasource:
+    url: jdbc:postgresql://localhost:2001/inventory-service
+    username: admin
+    password: admin123
