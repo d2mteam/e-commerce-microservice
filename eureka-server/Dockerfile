@@ -1,9 +1,16 @@
-FROM eclipse-temurin:21-jdk-alpine
+# syntax=docker/dockerfile:1
 
-ARG JAR_FILE=build/libs/*.jar
+FROM eclipse-temurin:21-jdk AS builder
+WORKDIR /app
+COPY gradlew .
+COPY gradle gradle
+COPY build.gradle settings.gradle .
+RUN sed -i 's/\r$//' gradlew && chmod +x gradlew
+COPY src src
+RUN ./gradlew --no-daemon clean bootJar -x test
 
-COPY ${JAR_FILE} app.jar
-
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+COPY --from=builder /app/build/libs/*.jar app.jar
 EXPOSE 8761
-
-ENTRYPOINT ["java","-jar","/app.jar"]
+ENTRYPOINT ["java","-jar","/app/app.jar"]
