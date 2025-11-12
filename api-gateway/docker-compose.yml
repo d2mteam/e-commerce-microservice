@@ -1,5 +1,17 @@
 # yaml
 services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.0
+    command: start-dev
+    environment:
+      - KEYCLOAK_ADMIN=admin
+      - KEYCLOAK_ADMIN_PASSWORD=admin
+      - KC_HOSTNAME_STRICT=false
+      - KC_PROXY=edge
+    ports:
+      - "8085:8080"
+    volumes:
+      - keycloak_data:/opt/keycloak/data
   eureka-server:
     build:
       context: ../eureka-server
