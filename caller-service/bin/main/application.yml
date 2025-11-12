@@ -1,0 +1,25 @@
+// filepath: d:\KTPM\e-commerce-microservice\caller-service\src\main\resources\application.yml
+spring:
+  application:
+    name: CALLER-SERVICE
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://keycloak:8080/realms/ecommerce/protocol/openid-connect/certs
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka
+    register-with-eureka: true
+    fetch-registry: true
+
+server:
+  port: 8020
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.web.reactive.function.client: TRACE

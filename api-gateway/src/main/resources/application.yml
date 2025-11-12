@@ -4,36 +4,28 @@ server:
 spring:
   application:
     name: api-gateway
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: http://localhost:8080/realms/ecommerce
+  main:
+    web-application-type: reactive
   cloud:
     gateway:
-      routes:
-        - id: user-service
-          uri: lb://USER-SERVICE
-          predicates:
-            - Path=/user/**
-        - id: order-service
-          uri: lb://ORDER-SERVICE
-          predicates:
-            - Path=/order/**
       discovery:
         locator:
-          enabled: true  # T? map service t? Eureka
+          enabled: true
           lower-case-service-id: true
+      routes:
 
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka
+      defaultZone: http://eureka-server:8761/eureka/
+
 management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,gateway,info
+
 logging:
   level:
-    org.springframework.security: INFO
+    org.springframework.cloud.gateway: DEBUG
+    reactor.netty.http.client: INFO

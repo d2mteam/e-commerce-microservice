@@ -1,0 +1,14 @@
+services:
+  caller-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: caller-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    ports:
+      - "8020:8020"
+
+networks:
+  default:
+    name: ecom-network

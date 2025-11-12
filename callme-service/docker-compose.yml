@@ -1,0 +1,14 @@
+services:
+  callme-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: callme-service
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    ports:
+      - "8040:8040"
+
+networks:
+  default:
+    name: ecom-network
