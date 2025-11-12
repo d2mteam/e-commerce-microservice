@@ -34,6 +34,10 @@ services:
         {"server":{"port":8081},
          "eureka":{"client":{"serviceUrl":{"defaultZone":"http://eureka-server:8761/eureka/"}}}}
 
+volumes:
+  keycloak_data:
+    driver: local
+
 networks:
   default:
     name: ecom-network
