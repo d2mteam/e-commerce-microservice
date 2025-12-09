@@ -1,0 +1,35 @@
+server:
+  port: 2000
+spring:
+  application:
+    name: inventory-service
+#  security:
+#    oauth2:
+#      resourceserver:
+#        jwt:
+#          issuer-uri: http://localhost:8080/realms/ecommerce
+  datasource:
+    url: jdbc:postgresql://localhost:2001/inventory-service
+    username: admin
+    password: admin123
+  kafka:
+    bootstrap-servers: localhost:9092
+
+logging:
+  level:
+    org:
+      springframework:
+        jdbc:
+          core: DEBUG
+    com.project: DEBUG
+
+event-sourcing:
+  snapshotting:
+    InventoryAggregate:
+      enabled: true
+      nth-event: 2
+#   Available subscription: polling, postgres-channel
+#  subscriptions: postgres-channel
+#  polling-subscriptions:
+#    polling-initial-delay: PT1S
+#    polling-interval: PT1S
