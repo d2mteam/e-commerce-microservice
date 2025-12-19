@@ -1,39 +1,85 @@
 server:
-  port: 8081
+  port: 8888
 
 spring:
   application:
     name: api-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: false
+          lower-case-service-id: true
+      routes:
+        - id: product-service
+          uri: lb://product-service
+          predicates:
+            - Path=/api/products/**
+        - id: order-service
+          uri: lb://order-service
+          predicates:
+            - Path=/api/orders/**
+        - id: inventory-service
+          uri: lb://inventory-service
+          predicates:
+            - Path=/api/inventory/**
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:3000"
+              - "http://localhost:4200"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+            exposedHeaders:
+              - "Authorization"
+            maxAge: 3600
+
   security:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:8080/realms/ecommerce
-  cloud:
-    gateway:
-      routes:
-        - id: user-service
-          uri: lb://USER-SERVICE
-          predicates:
-            - Path=/user/**
-        - id: order-service
-          uri: lb://ORDER-SERVICE
-          predicates:
-            - Path=/order/**
-      discovery:
-        locator:
-          enabled: true  # T? map service t? Eureka
-          lower-case-service-id: true
+          issuer-uri: http://localhost:8080/realms/ecommerce-realm
+          jwk-set-uri: http://localhost:8080/realms/ecommerce-realm/protocol/openid-connect/certs
 
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
 management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: health, info, gateway
+
 logging:
   level:
-    org.springframework.security: INFO
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.security: DEBUG
+
+---
+# Docker profile
+spring:
+  config:
+    activate:
+      on-profile: docker
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://keycloak:8080/realms/ecommerce-realm
+          jwk-set-uri: http://keycloak:8080/realms/ecommerce-realm/protocol/openid-connect/certs
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka/

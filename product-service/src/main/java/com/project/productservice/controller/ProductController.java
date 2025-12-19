@@ -5,6 +5,7 @@ import com.project.productservice.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,80 +20,78 @@ public class ProductController {
     private ProductService productService;
 
     /**
-     * TẠO MỚI (POST /api/products)
-     * Hàm này gọi service, service sẽ lưu vào CẢ SQL và Elasticsearch.
+     * Create product - ADMIN only
      */
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Product> createProduct(@RequestBody Product product) {
         Product newProduct = productService.createProduct(product);
         return ResponseEntity.status(HttpStatus.CREATED).body(newProduct);
     }
 
     /**
-     * CẬP NHẬT (PUT /api/products/{id})
-     * Hàm này gọi service, service sẽ cập nhật CẢ SQL và Elasticsearch.
+     * Update product - ADMIN only
      */
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Product> updateProduct(@PathVariable UUID id, @RequestBody Product productDetails) {
         Product updatedProduct = productService.updateProduct(id, productDetails);
         return ResponseEntity.ok(updatedProduct);
     }
 
     /**
-     * XÓA (DELETE /api/products/{id})
-     * Hàm này gọi service, service sẽ xóa ở CẢ SQL và Elasticsearch.
+     * Delete product - ADMIN only
      */
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteProduct(@PathVariable UUID id) {
         productService.deleteProduct(id);
         return ResponseEntity.noContent().build();
     }
 
     /**
-     * LẤY THEO ID (GET /api/products/{id})
-     * Chỉ dùng SQL (nguồn dữ liệu chính)
+     * Get product by ID - Any authenticated user (admin or user)
      */
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<Product> getProductById(@PathVariable UUID id) {
         Product product = productService.getProductById(id);
         return ResponseEntity.ok(product);
     }
 
     /**
-     * Gọi nó bằng URL: /api/products/search/ids?name=keyword
+     * Search product IDs by name - Any authenticated user
      */
     @GetMapping("/search/ids")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public List<UUID> searchProductIdsByName(@RequestParam String name) {
         return productService.searchProductIdsByName(name);
     }
 
     /**
-     * TÌM KIẾM DÙNG ELASTICSEARCH
-     * Gọi nó bằng URL: /api/products/search?name=keyword
-     * Trả về danh sách Product đầy đủ.
+     * Search products using Elasticsearch - Any authenticated user
      */
     @GetMapping("/search")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<List<Product>> searchProducts(@RequestParam String name) {
         List<Product> products = productService.searchProductsByName(name);
         return ResponseEntity.ok(products);
     }
 
+    /**
+     * Get product by name - Any authenticated user
+     */
     @GetMapping("/by-name")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<?> getProductByName(@RequestParam String name) {
-
-
         Optional<Product> productOptional = productService.getProductByName(name);
 
-
         if (productOptional.isPresent()) {
-
             Product product = productOptional.get();
             return ResponseEntity.ok(product);
         } else {
-
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body("Không tìm thấy sản phẩm với tên: " + name);
+                    .body("Product not found with name: " + name);
         }
     }
-
 }
