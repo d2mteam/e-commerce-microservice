@@ -3,11 +3,13 @@ package com.project.akka.order;
 import akka.actor.typed.ActorRef;
 import akka.actor.typed.ActorSystem;
 import akka.actor.typed.Props;
+import akka.actor.typed.SupervisorStrategy;
 import akka.actor.typed.javadsl.AskPattern;
 import akka.pattern.StatusReply;
 import com.project.domain.order.aggregate.vo.OrderDetail;
 import com.project.integration.IntegrationOutboxPublisher;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -20,6 +22,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class OrderGateway {
 
     private final ActorSystem<Void> actorSystem;
@@ -31,6 +34,7 @@ public class OrderGateway {
     public CompletionStage<OrderState> createOrder(UUID orderId,
                                                    UUID userId,
                                                    List<OrderDetail> details) {
+        log.info("OrderGateway#create orderId={} userId={} details={}", orderId, userId, details);
         ActorRef<OrderCommand> actor = actorFor(orderId);
         CompletionStage<StatusReply<OrderState>> stage = AskPattern.ask(
                 actor,
@@ -43,6 +47,7 @@ public class OrderGateway {
     public CompletionStage<OrderState> cancelOrder(UUID orderId,
                                                    UUID userId,
                                                    String reason) {
+        log.info("OrderGateway#cancel orderId={} userId={} reason={}", orderId, userId, reason);
         ActorRef<OrderCommand> actor = actorFor(orderId);
         CompletionStage<StatusReply<OrderState>> stage = AskPattern.ask(
                 actor,
@@ -54,6 +59,7 @@ public class OrderGateway {
 
     public CompletionStage<OrderState> confirmStock(UUID orderId,
                                                     UUID inventoryId) {
+        log.info("OrderGateway#confirmStock orderId={} inventoryId={}", orderId, inventoryId);
         ActorRef<OrderCommand> actor = actorFor(orderId);
         CompletionStage<StatusReply<OrderState>> stage = AskPattern.ask(
                 actor,
@@ -64,6 +70,7 @@ public class OrderGateway {
     }
 
     public CompletionStage<OrderState> markOutOfStock(UUID orderId, String reason) {
+        log.warn("OrderGateway#outOfStock orderId={} reason={}", orderId, reason);
         ActorRef<OrderCommand> actor = actorFor(orderId);
         CompletionStage<StatusReply<OrderState>> stage = AskPattern.ask(
                 actor,
@@ -73,10 +80,22 @@ public class OrderGateway {
         return unwrap(stage);
     }
 
+    public CompletionStage<OrderState> getState(UUID orderId) {
+        log.info("OrderGateway#getState orderId={}", orderId);
+        ActorRef<OrderCommand> actor = actorFor(orderId);
+        return AskPattern.ask(
+                actor,
+                replyTo -> new OrderCommand.GetState(orderId, replyTo),
+                timeout,
+                actorSystem.scheduler());
+    }
+
     private ActorRef<OrderCommand> actorFor(UUID id) {
         return orderActors.computeIfAbsent(id,
                 key -> actorSystem.systemActorOf(
-                        OrderBehavior.create(key, outboxPublisher),
+                        akka.actor.typed.javadsl.Behaviors.supervise(
+                                        OrderBehavior.create(key, outboxPublisher))
+                                .onFailure(SupervisorStrategy.restart()),
                         "order-" + key,
                         Props.empty()));
     }

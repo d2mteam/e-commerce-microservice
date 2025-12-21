@@ -26,6 +26,7 @@ repositories {
 
 ext {
     set('akkaVersion', "2.8.5")
+    set('flywayVersion', "9.22.3")
 }
 
 dependencies {
@@ -33,6 +34,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-jdbc'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+    implementation "org.flywaydb:flyway-core:${flywayVersion}"
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.kafka:spring-kafka'
@@ -42,6 +44,7 @@ dependencies {
     implementation "com.typesafe.akka:akka-persistence-typed_2.13:${akkaVersion}"
     implementation "com.typesafe.akka:akka-serialization-jackson_2.13:${akkaVersion}"
     implementation "com.typesafe.akka:akka-persistence-query_2.13:${akkaVersion}"
+    implementation "com.lightbend.akka:akka-persistence-jdbc_2.13:4.0.0"
 
     testImplementation "com.typesafe.akka:akka-actor-testkit-typed_2.13:${akkaVersion}"
 

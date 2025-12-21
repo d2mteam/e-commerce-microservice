@@ -216,15 +216,18 @@ public final class InventoryBehavior extends EventSourcedBehaviorWithEnforcedRep
                 null,
                 cmd.correlationId() != null ? cmd.correlationId() : cmd.orderId().toString()
         );
+        Map<String, Object> data = new HashMap<>();
+        data.put("orderId", payload.orderId());
+        data.put("productId", payload.productId());
+        data.put("result", payload.result().name());
+        if (payload.reason() != null) {
+            data.put("reason", payload.reason());
+        }
+        data.put("correlationId", payload.correlationId());
+
         outboxPublisher.save(cmd.inventoryId(), IntegrationMessage.builder()
                 .type(ProductReserveReply.class.getSimpleName())
-                .payload(Map.of(
-                        "orderId", payload.orderId(),
-                        "productId", payload.productId(),
-                        "result", payload.result().name(),
-                        "reason", payload.reason(),
-                        "correlationId", payload.correlationId()
-                ))
+                .payload(data)
                 .build());
     }
 
@@ -237,15 +240,16 @@ public final class InventoryBehavior extends EventSourcedBehaviorWithEnforcedRep
                 reason,
                 cmd.correlationId() != null ? cmd.correlationId() : cmd.orderId().toString()
         );
+        Map<String, Object> data = new HashMap<>();
+        data.put("orderId", payload.orderId());
+        data.put("productId", payload.productId());
+        data.put("result", payload.result().name());
+        data.put("reason", payload.reason());
+        data.put("correlationId", payload.correlationId());
+
         outboxPublisher.save(cmd.inventoryId(), IntegrationMessage.builder()
                 .type(ProductReserveReply.class.getSimpleName())
-                .payload(Map.of(
-                        "orderId", payload.orderId(),
-                        "productId", payload.productId(),
-                        "result", payload.result().name(),
-                        "reason", payload.reason(),
-                        "correlationId", payload.correlationId()
-                ))
+                .payload(data)
                 .build());
     }
 
@@ -257,15 +261,18 @@ public final class InventoryBehavior extends EventSourcedBehaviorWithEnforcedRep
                 null,
                 cmd.orderId().toString()
         );
+        Map<String, Object> data = new HashMap<>();
+        data.put("orderId", payload.orderId());
+        data.put("productId", payload.productId());
+        data.put("result", payload.result().name());
+        if (payload.reason() != null) {
+            data.put("reason", payload.reason());
+        }
+        data.put("correlationId", payload.correlationId());
+
         outboxPublisher.save(cmd.inventoryId(), IntegrationMessage.builder()
                 .type(ProductReleaseReply.class.getSimpleName())
-                .payload(Map.of(
-                        "orderId", payload.orderId(),
-                        "productId", payload.productId(),
-                        "result", payload.result().name(),
-                        "reason", payload.reason(),
-                        "correlationId", payload.correlationId()
-                ))
+                .payload(data)
                 .build());
     }
 
@@ -278,15 +285,16 @@ public final class InventoryBehavior extends EventSourcedBehaviorWithEnforcedRep
                 reason,
                 cmd.orderId().toString()
         );
+        Map<String, Object> data = new HashMap<>();
+        data.put("orderId", payload.orderId());
+        data.put("productId", payload.productId());
+        data.put("result", payload.result().name());
+        data.put("reason", payload.reason());
+        data.put("correlationId", payload.correlationId());
+
         outboxPublisher.save(cmd.inventoryId(), IntegrationMessage.builder()
                 .type(ProductReleaseReply.class.getSimpleName())
-                .payload(Map.of(
-                        "orderId", payload.orderId(),
-                        "productId", payload.productId(),
-                        "result", payload.result().name(),
-                        "reason", payload.reason(),
-                        "correlationId", payload.correlationId()
-                ))
+                .payload(data)
                 .build());
     }
 }

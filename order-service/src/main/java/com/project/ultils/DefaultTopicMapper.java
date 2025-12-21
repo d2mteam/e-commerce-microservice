@@ -13,10 +13,10 @@ import java.util.Map;
 public class DefaultTopicMapper implements TopicMapper {
 
     private final Map<String, List<String>> registry = Map.of(
-            ProductReserveRequest.class.getSimpleName(), List.of("inventory-topic"),
-            ProductReleaseRequest.class.getSimpleName(), List.of("inventory-topic"),
-            ProductReserveReply.class.getSimpleName(), List.of("order-topic"),
-            ProductReleaseReply.class.getSimpleName(), List.of("order-topic")
+            ProductReserveRequest.class.getSimpleName(), List.of("inventory-service"),
+            ProductReleaseRequest.class.getSimpleName(), List.of("inventory-service"),
+            ProductReserveReply.class.getSimpleName(), List.of("order-service"),
+            ProductReleaseReply.class.getSimpleName(), List.of("order-service")
     );
 
     @Override

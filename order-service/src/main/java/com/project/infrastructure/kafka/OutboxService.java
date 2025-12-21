@@ -1,6 +1,5 @@
 package com.project.infrastructure.kafka;
 
-import com.project.application.integration.Wrapper;
 import com.project.infrastructure.jpa.entity.OutboxEvent;
 import com.project.infrastructure.jpa.repository.OutboxEventRepository;
 import com.project.ultils.TopicMapper;
@@ -10,7 +9,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Component
 @AllArgsConstructor
@@ -26,13 +27,12 @@ public class OutboxService {
 
         List<String> topics = topicMapper.getTopicsFromEventType(outboxEvent.getEventType());
 
-        Wrapper wrapper = Wrapper.builder()
-                .eventType(outboxEvent.getEventType())
-                .data(outboxEvent.getPayload())
-                .build();
+        Map<String, Object> message = new HashMap<>();
+        message.put("eventType", outboxEvent.getEventType());
+        message.put("data", outboxEvent.getPayload());
 
         for (String topic : topics) {
-            kafkaTemplate.send(topic, outboxEvent.getAggregateId().toString(), wrapper);
+            kafkaTemplate.send(topic, outboxEvent.getAggregateId().toString(), message);
         }
 
     }

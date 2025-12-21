@@ -109,7 +109,10 @@ public final class OrderBehavior extends EventSourcedBehaviorWithEnforcedReplies
         }
         var event = new OrderEvent.InventoryOutOfStock(cmd.reason(), OffsetDateTime.now());
         return Effect().persist(event)
-                .thenReply(cmd.replyTo(), StatusReply::success);
+                .thenReply(cmd.replyTo(), newState -> {
+                    emitReleaseRequests(newState);
+                    return StatusReply.success(newState);
+                });
     }
 
     private ReplyEffect<OrderEvent, OrderState> handleCancel(OrderState state,
