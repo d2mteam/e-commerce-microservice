@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.springframework/spring-expression/6.2.12/aa5033d9e583aafc972b205618de13c5242c9cf5/spring-expression-6.2.12.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.springframework/spring-expression/6.2.12/d2eda3ade2de4bf3cea00fcc754e9c9cab0f0b15/spring-expression-6.2.12-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.apache.tomcat.embed/tomcat-embed-core/10.1.48/d4c095a353c839a23a401ce9afbcb52d5be97b69/tomcat-embed-core-10.1.48.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.apache.tomcat.embed/tomcat-embed-core/10.1.48/39dbe5288d1fc32cb29bc4a8b7a9d8e8a1472b7d/tomcat-embed-core-10.1.48-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

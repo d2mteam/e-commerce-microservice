@@ -1,9 +1,9 @@
 package com.project.ultils;
 
-import com.project.application.integration.impl.ProductReleaseRequest;
-import com.project.application.integration.impl.ProductReleaseReply;
-import com.project.application.integration.impl.ProductReserveReply;
-import com.project.application.integration.impl.ProductReserveRequest;
+import com.project.integration.message.ProductReleaseRequest;
+import com.project.integration.message.ProductReleaseReply;
+import com.project.integration.message.ProductReserveReply;
+import com.project.integration.message.ProductReserveRequest;
 import org.springframework.stereotype.Component;
 
 import java.util.List;

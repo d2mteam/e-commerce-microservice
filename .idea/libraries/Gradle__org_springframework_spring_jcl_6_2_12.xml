@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.springframework/spring-jcl/6.2.12/d127f5020441b3cfe197668d32a327391587ff59/spring-jcl-6.2.12.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.springframework/spring-jcl/6.2.12/6cc1590af55058edb1b4f85d56e512fb7bb3e352/spring-jcl-6.2.12-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

@@ -3,10 +3,9 @@ package com.project.controller;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.project.domain.order.command.CancelOrderCommand;
-import com.project.domain.order.command.CreateOrderCommand;
-import com.project.event_sourcing_core.domain.command.Command;
-import com.project.event_sourcing_core.service.CommandProcessor;
+import com.project.akka.order.OrderGateway;
+import com.project.akka.order.OrderState;
+import com.project.domain.order.aggregate.vo.OrderDetail;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -18,32 +17,40 @@ import java.util.UUID;
 @RequestMapping("/orders")
 public class OrderController {
     private final ObjectMapper objectMapper;
-    private final CommandProcessor commandProcessor;
+    private final OrderGateway orderGateway;
 
     @PostMapping
     public ResponseEntity<JsonNode> placeOrder(@RequestBody JsonNode request) {
         JsonNode orderDetails = request.get("orderDetails");
         UUID orderId = UUID.randomUUID();
-        Command command = CreateOrderCommand.builder()
-                .userId(UUID.fromString(request.get("userId").asText()))
-                .orderDetails(objectMapper.convertValue(orderDetails, new TypeReference<>() {
-                }))
-                .aggregateId(orderId)
-                .build();
-        var order = commandProcessor.process(command);
-        return ResponseEntity.ok().body(objectMapper.convertValue(order, new TypeReference<>() {
-        }));
+        UUID userId = UUID.fromString(request.get("userId").asText());
+        try {
+            var details = objectMapper.convertValue(orderDetails, new TypeReference<java.util.List<OrderDetail>>() {
+            });
+            OrderState order = orderGateway.createOrder(orderId, userId, details).toCompletableFuture().join();
+            return ResponseEntity.ok().body(objectMapper.convertValue(order, new TypeReference<>() {
+            }));
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().body(
+                    objectMapper.createObjectNode().put("error", ex.getMessage())
+            );
+        }
     }
 
     @DeleteMapping
     public ResponseEntity<JsonNode> cancelOrder(@RequestBody JsonNode request) {
-        Command command = CancelOrderCommand.builder()
-                .userId(UUID.fromString(request.get("userId").asText()))
-                .reason(request.get("reason").asText())
-                .aggregateId(UUID.fromString(request.get("aggregateId").asText()))
-                .build();
-        var order = commandProcessor.process(command);
-        return ResponseEntity.ok().body(objectMapper.convertValue(order, new TypeReference<>() {
-        }));
+        UUID orderId = UUID.fromString(request.get("aggregateId").asText());
+        UUID userId = UUID.fromString(request.get("userId").asText());
+        String reason = request.get("reason").asText();
+
+        try {
+            OrderState order = orderGateway.cancelOrder(orderId, userId, reason).toCompletableFuture().join();
+            return ResponseEntity.ok().body(objectMapper.convertValue(order, new TypeReference<>() {
+            }));
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().body(
+                    objectMapper.createObjectNode().put("error", ex.getMessage())
+            );
+        }
     }
 }

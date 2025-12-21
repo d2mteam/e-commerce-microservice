@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.springframework.boot/spring-boot-starter-jdbc/3.5.7/3e64a947b66284f6e164d6049bbb8060d702108c/spring-boot-starter-jdbc-3.5.7.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.springframework.boot/spring-boot-starter-jdbc/3.5.7/1eb4938b81748f6a8db03a8d3bed23e8a22677f/spring-boot-starter-jdbc-3.5.7-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

@@ -3,8 +3,8 @@ package com.project.controller;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.project.domain.inventory.command.AddStockCommand;
-import com.project.event_sourcing_core.service.CommandProcessor;
+import com.project.akka.inventory.InventoryGateway;
+import com.project.akka.inventory.InventoryState;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,27 +16,22 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class InventoryCommandController {
 
-    private final CommandProcessor commandProcessor;
+    private final InventoryGateway inventoryGateway;
     private final ObjectMapper objectMapper;
 
     @PostMapping("/add-stock")
     public ResponseEntity<JsonNode> addStock(@RequestBody JsonNode request) {
-
-        UUID inventoryId = UUID.fromString(
-                request.get("inventoryId").asText()
-        );
-
+        UUID inventoryId = UUID.fromString(request.get("inventoryId").asText());
         int quantity = request.get("quantity").asInt();
 
-        var command = AddStockCommand.builder()
-                .aggregateId(inventoryId)
-                .quantity(quantity)
-                .build();
-
-        var result = commandProcessor.process(command);
-
-        return ResponseEntity.ok(
-                objectMapper.convertValue(result, new TypeReference<>() {})
-        );
+        try {
+            InventoryState state = inventoryGateway.addStock(inventoryId, quantity).toCompletableFuture().join();
+            return ResponseEntity.ok(objectMapper.convertValue(state, new TypeReference<>() {
+            }));
+        } catch (Exception ex) {
+            return ResponseEntity.badRequest().body(
+                    objectMapper.createObjectNode().put("error", ex.getMessage())
+            );
+        }
     }
 }
