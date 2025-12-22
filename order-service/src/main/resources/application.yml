@@ -1,13 +1,44 @@
+server:
+  port: 8081
+
 spring:
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      enable-auto-commit: false
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      ack-mode: MANUAL_IMMEDIATE
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    properties:
+      spring.json.add.type.headers: false
+
+  #  security:
+  #    oauth2:
+  #      resourceserver:
+  #        jwt:
+  #          issuer-uri: http://localhost:8080/realms/ecommerce
+
   application:
     name: order-service
+
   datasource:
     url: jdbc:postgresql://localhost:1000/order-service
     username: admin
     password: admin123
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+
+
 logging:
   level:
     org:
       springframework:
         jdbc:
           core: DEBUG
+    com.project: DEBUG

@@ -5,6 +5,8 @@
       <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.springframework/spring-aspects/6.2.12/14702fc62ef23402cf8cd24e2e4e72708bac4a02/spring-aspects-6.2.12.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES />
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/org.springframework/spring-aspects/6.2.12/e416856c33d971092d39d70b385c0223a77ad69d/spring-aspects-6.2.12-sources.jar!/" />
+    </SOURCES>
   </library>
 </component>

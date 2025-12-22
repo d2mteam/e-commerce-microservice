@@ -26,6 +26,8 @@ repositories {
 
 ext {
     set('springCloudVersion', "2025.0.0")
+    set('akkaVersion', "2.8.5")
+    set('flywayVersion', "9.22.3")
 }
 
 dependencies {
@@ -33,9 +35,20 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
 
     implementation "org.postgresql:postgresql"
+    implementation "org.flywaydb:flyway-core:${flywayVersion}"
     implementation 'com.fasterxml.jackson.core:jackson-annotations'
     implementation 'com.fasterxml.jackson.core:jackson-databind'
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.kafka:spring-kafka'
+    // Akka typed stack (local/in-memory persistence for demo)
+    implementation "com.typesafe.akka:akka-actor-typed_2.13:${akkaVersion}"
+    implementation "com.typesafe.akka:akka-persistence-typed_2.13:${akkaVersion}"
+    implementation "com.typesafe.akka:akka-serialization-jackson_2.13:${akkaVersion}"
+    implementation "com.typesafe.akka:akka-persistence-query_2.13:${akkaVersion}"
+    implementation "com.lightbend.akka:akka-persistence-jdbc_2.13:4.0.0"
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    testImplementation "com.typesafe.akka:akka-actor-testkit-typed_2.13:${akkaVersion}"
+    testImplementation 'org.springframework.kafka:spring-kafka-test'
 
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
