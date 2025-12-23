@@ -138,9 +138,14 @@ Hướng dẫn nhanh để chạy dịch vụ và gọi API (không cần UI).
 - Event log dùng Akka Persistence Query, trả `eventType`, `sequenceNumber`, `timestamp`, `event` JSON.
 
 ## Mock Payment service (port 8083)
-- Nhận `PaymentRequested` qua Kafka topic `payment-service`, tạo invoice PENDING (H2, TTL cấu hình `payment.expiry-seconds`).
+- DB: PostgreSQL (localhost:3001/mock-payment) – docker-compose kèm Postgres có sẵn.
+- Kafka: dùng bootstrap localhost:9092 (cùng cluster với các service khác).
+- Nhận `PaymentRequested` (topic `payment-service`), tạo invoice PENDING, expiresAt = now + `payment.expiry-seconds` (cấu hình trong `mock-payment/src/main/resources/application.yml`).
 - API:
-  - `POST /payments/pay` `{ "orderId": "<uuid>" }` → mark SUCCESS, emit `PaymentResult` SUCCESS về `order-service`.
-  - `POST /payments/config/timeout` `{ "seconds": <long> }` → thay đổi TTL.
-  - `GET /payments/{orderId}` → xem invoice (PENDING/SUCCESS/FAILED, expiresAt).
-- Scheduler tự động hết hạn invoice PENDING → emit `PaymentResult` FAILED (reason TIMEOUT).
+  - `POST /payments/pay`  
+    Body: `{ "orderId": "<uuid>" }` → mark SUCCESS, emit `PaymentResult` SUCCESS → topic `order-service`.
+  - `POST /payments/config/timeout`  
+    Body: `{ "seconds": <long> }` → cập nhật TTL cho invoice mới.
+  - `GET /payments/{orderId}` → trả invoice JSON:  
+    `{ "orderId", "userId", "amount", "status": "PENDING|SUCCESS|FAILED", "correlationId", "createdAt", "expiresAt" }`
+- Scheduler (5s) tự hết hạn invoice PENDING → mark FAILED, emit `PaymentResult` FAILED (reason TIMEOUT) → topic `order-service`.
