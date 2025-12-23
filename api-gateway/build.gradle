@@ -31,6 +31,16 @@ dependencies {
     // Security - OAuth2 Resource Server for JWT validation
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
 
+    // Circuit Breaker (Resilience4j)
+    implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-reactor-resilience4j'
+
+    // Monitoring & Metrics
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+
+    // Rate Limiting - Token Bucket Algorithm
+    implementation 'com.bucket4j:bucket4j-core:8.10.1'
+
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 

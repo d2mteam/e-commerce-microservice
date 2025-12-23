@@ -2,7 +2,87 @@ version: '3.8'
 
 services:
   # ==========================================
-  # 1. CORE SERVICES (Discovery & Gateway)
+  # INFRASTRUCTURE (Cơ sở hạ tầng)
+  # ==========================================
+  
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres-core
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:latest
+    container_name: redpanda
+    command:
+      - redpanda start
+      - --overprovisioned
+      - --smp 1
+      - --memory 512M
+      - --reserve-memory 0M
+      - --node-id 0
+      - --check=false
+      - --kafka-addr=PLAINTEXT://0.0.0.0:9092,DOCKER://0.0.0.0:19092
+      - --advertise-kafka-addr=PLAINTEXT://localhost:9092,DOCKER://redpanda:19092
+    ports:
+      - "9092:9092"   # Host access
+      - "19092:19092" # Internal access
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy|OK'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.10
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    networks:
+      - ecommerce-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - ecommerce-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+    networks:
+      - ecommerce-network
+
+  # ==========================================
+  # MIDDLEWARE (Dịch vụ trung gian)
   # ==========================================
 
   eureka-server:
@@ -11,7 +91,7 @@ services:
     ports:
       - "8761:8761"
     environment:
-      - SPRING_PROFILES_ACTIVE=docker
+      - JAVA_TOOL_OPTIONS=-Xmx256m -Xms256m
     networks:
       - ecommerce-network
     healthcheck:
@@ -19,7 +99,29 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 40s
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0.0
+    container_name: keycloak
+    command: start-dev
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: admin
+      KC_DB_PASSWORD: password
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+
+  # ==========================================
+  # MICROSERVICES (Ứng dụng chính)
+  # ==========================================
 
   api-gateway:
     build: ./api-gateway
@@ -28,40 +130,13 @@ services:
       - "8888:8888"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-      - SERVER_PORT=8888
+      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://keycloak:8080/realms/ecommerce-realm
+      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI=http://keycloak:8080/realms/ecommerce-realm/protocol/openid-connect/certs
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
     depends_on:
       eureka-server:
         condition: service_healthy
-    networks:
-      - ecommerce-network
-
-  # ==========================================
-  # 2. MICROSERVICES (Business Logic)
-  # ==========================================
-
-  product-service:
-    build: ./product-service
-    container_name: product-service
-    ports:
-      - "8081:8081"
-    environment:
-      - SPRING_PROFILES_ACTIVE=docker
-      - SERVER_PORT=8081
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-product:5432/search_db
-      - SPRING_DATASOURCE_USERNAME=admin
-      - SPRING_DATASOURCE_PASSWORD=1234
-      - SPRING_ELASTICSEARCH_URIS=http://elasticsearch:9200
-      - SPRING_DATA_MONGODB_URI=mongodb://admin:secret123@mongo:27017/mydatabase?authSource=admin
-    depends_on:
-      eureka-server:
-        condition: service_healthy
-      postgres-product:
-        condition: service_started
-      elasticsearch:
-        condition: service_started
-      mongo:
+      keycloak:
         condition: service_started
     networks:
       - ecommerce-network
@@ -70,198 +145,91 @@ services:
     build: ./inventory-service
     container_name: inventory-service
     ports:
-      - "8083:8083"
+      - "2000:2000"
     environment:
       - SPRING_PROFILES_ACTIVE=docker
-      - SERVER_PORT=8083
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-      # Auto-configuring DB for inventory since it was missing in properties
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-inventory:5432/inventory_db
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/inventory-service?timezone=Asia/Ho_Chi_Minh
       - SPRING_DATASOURCE_USERNAME=admin
-      - SPRING_DATASOURCE_PASSWORD=inventory123
-      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - SPRING_DATASOURCE_PASSWORD=password
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=redpanda:19092
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - JAVA_TOOL_OPTIONS=-Duser.timezone=Asia/Ho_Chi_Minh
     depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
       eureka-server:
         condition: service_healthy
-      postgres-inventory:
-        condition: service_healthy
     networks:
       - ecommerce-network
 
-  # [!] ORDER SERVICE - Commented out due to compilation error (StartShippingCommand missing)
-  # Uncomment this block once the Java code is fixed.
-  # order-service:
-  #   build: ./order-service
-  #   container_name: order-service
-  #   ports:
-  #     - "8082:8082"
-  #   environment:
-  #     - SERVER_PORT=8082
-  #     - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka-server:8761/eureka/
-  #     - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-order:5432/order-service
-  #     - SPRING_DATASOURCE_USERNAME=admin
-  #     - SPRING_DATASOURCE_PASSWORD=admin123
-  #   depends_on:
-  #     eureka-server:
-  #       condition: service_healthy
-  #     postgres-order:
-  #       condition: service_healthy
-  #   networks:
-  #     - ecommerce-network
-
-  # ==========================================
-  # 3. INFRASTRUCTURE (Databases & Search)
-  # ==========================================
-
-  # --- Database for Product Service ---
-  postgres-product:
-    image: postgres:16
-    container_name: product_postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: 1234
-      POSTGRES_DB: search_db
-      TZ: Asia/Ho_Chi_Minh
+  order-service:
+    build: ./order-service
+    container_name: order-service
     ports:
-      - "5432:5432" # Host Port 5432
-    volumes:
-      - pgdata_product:/var/lib/postgresql/data
-    networks:
-      - ecommerce-network
-
-  # --- Database for Order Service ---
-  postgres-order:
-    image: postgres:15
-    container_name: order_postgres
-    restart: unless-stopped
+      - "8081:8081"
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin123
-      POSTGRES_DB: order-service
-    ports:
-      - "1000:5432" # Host Port 1000
-    volumes:
-      - pgdata_order:/var/lib/postgresql/data
-    networks:
-      - ecommerce-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d order-service"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # --- Database for Inventory Service (New) ---
-  postgres-inventory:
-    image: postgres:15
-    container_name: inventory_postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: inventory123
-      POSTGRES_DB: inventory_db
-    ports:
-      - "5434:5432" # Host Port 5434 (Different from others)
-    volumes:
-      - pgdata_inventory:/var/lib/postgresql/data
-    networks:
-      - ecommerce-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U admin -d inventory_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # --- Search Engine ---
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.10
-    container_name: elasticsearch
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    ports:
-      - "9200:9200"
-    volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
-    networks:
-      - ecommerce-network
-
-  # --- NoSQL Database ---
-  mongo:
-    image: mongo:latest
-    container_name: mongo_db
-    ports:
-      - "27017:27017"
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: secret123
-      MONGO_INITDB_DATABASE: mydatabase
-    volumes:
-      - mongo_data:/data/db
-    networks:
-      - ecommerce-network
-
-  # ==========================================
-  # 4. SECURITY (Keycloak)
-  # ==========================================
-
-  # --- Database for Keycloak ---
-  postgres-keycloak:
-    image: postgres:16
-    container_name: keycloak_postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: keycloak
-      POSTGRES_PASSWORD: keycloak_password
-      POSTGRES_DB: keycloak_db
-    ports:
-      - "5435:5432"
-    volumes:
-      - pgdata_keycloak:/var/lib/postgresql/data
-    networks:
-      - ecommerce-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # --- Keycloak Identity Provider ---
-  keycloak:
-    image: quay.io/keycloak/keycloak:24.0
-    container_name: keycloak
-    command: start-dev
-    environment:
-      KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://postgres-keycloak:5432/keycloak_db
-      KC_DB_USERNAME: keycloak
-      KC_DB_PASSWORD: keycloak_password
-      KC_HOSTNAME: localhost
-      KC_HOSTNAME_PORT: 8080
-      KC_HOSTNAME_STRICT: false
-      KC_HOSTNAME_STRICT_HTTPS: false
-      KC_LOG_LEVEL: info
-      KC_METRICS_ENABLED: true
-      KC_HEALTH_ENABLED: true
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
-    ports:
-      - "8080:8080"
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/order-service?timezone=Asia/Ho_Chi_Minh
+      - SPRING_DATASOURCE_USERNAME=admin
+      - SPRING_DATASOURCE_PASSWORD=password
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=redpanda:19092
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - JAVA_TOOL_OPTIONS=-Duser.timezone=Asia/Ho_Chi_Minh
     depends_on:
-      postgres-keycloak:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+      eureka-server:
         condition: service_healthy
     networks:
       - ecommerce-network
+
+  product-service:
+    build: ./product-service
+    container_name: product-service
+    ports:
+      - "8082:8081" # Map port 8082 (host) -> 8081 (container) to avoid conflict with Order Service
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/search_db?timezone=Asia/Ho_Chi_Minh
+      - SPRING_DATASOURCE_USERNAME=admin
+      - SPRING_DATASOURCE_PASSWORD=password
+      - SPRING_ELASTICSEARCH_URIS=http://elasticsearch:9200
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - JAVA_TOOL_OPTIONS=-Duser.timezone=Asia/Ho_Chi_Minh
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_started
+    networks:
+      - ecommerce-network
+
+  mock-payment:
+    build: ./mock-payment
+    container_name: mock-payment
+    ports:
+      - "8083:8080" # WARNING: Host 8083 maps to Container 8080
+    environment:
+      - SERVER_PORT=8080
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/mock_payment_db?timezone=Asia/Ho_Chi_Minh
+      - SPRING_DATASOURCE_USERNAME=admin
+      - SPRING_DATASOURCE_PASSWORD=password
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+
+volumes:
+  postgres_data:
 
 networks:
   ecommerce-network:
     driver: bridge
-
-volumes:
-  pgdata_product:
-  pgdata_order:
-  pgdata_inventory:
-  pgdata_keycloak:
-  elasticsearch_data:
-  mongo_data:

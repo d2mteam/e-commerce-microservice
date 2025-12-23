@@ -26,14 +26,36 @@ spring:
     name: order-service
 
   datasource:
-    url: jdbc:postgresql://localhost:1000/order-service
+    url: jdbc:postgresql://localhost:1000/order-service?timezone=Asia/Ho_Chi_Minh
     username: admin
     password: admin123
   jpa:
     hibernate:
       ddl-auto: update
 
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
 
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10000
+        permittedNumberOfCallsInHalfOpenState: 3
+        minimumNumberOfCalls: 5
+    instances:
+      paymentService:
+        baseConfig: default
+        slidingWindowSize: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30000    # 30s wait when open
+        permittedNumberOfCallsInHalfOpenState: 2
 
 logging:
   level:
@@ -41,4 +63,5 @@ logging:
       springframework:
         jdbc:
           core: DEBUG
+    io.github.resilience4j: DEBUG
     com.project: DEBUG

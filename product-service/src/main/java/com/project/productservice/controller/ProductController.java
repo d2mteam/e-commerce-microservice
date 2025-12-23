@@ -2,10 +2,10 @@ package com.project.productservice.controller;
 
 import com.project.productservice.entity.Product;
 import com.project.productservice.service.ProductService;
+import com.project.productservice.utils.RequireRole;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,7 +23,7 @@ public class ProductController {
      * Create product - ADMIN only
      */
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @RequireRole("ADMIN")
     public ResponseEntity<Product> createProduct(@RequestBody Product product) {
         Product newProduct = productService.createProduct(product);
         return ResponseEntity.status(HttpStatus.CREATED).body(newProduct);
@@ -33,7 +33,7 @@ public class ProductController {
      * Update product - ADMIN only
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @RequireRole("ADMIN")
     public ResponseEntity<Product> updateProduct(@PathVariable UUID id, @RequestBody Product productDetails) {
         Product updatedProduct = productService.updateProduct(id, productDetails);
         return ResponseEntity.ok(updatedProduct);
@@ -43,7 +43,7 @@ public class ProductController {
      * Delete product - ADMIN only
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @RequireRole("ADMIN")
     public ResponseEntity<Void> deleteProduct(@PathVariable UUID id) {
         productService.deleteProduct(id);
         return ResponseEntity.noContent().build();
@@ -53,7 +53,7 @@ public class ProductController {
      * Get product by ID - Any authenticated user (admin or user)
      */
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @RequireRole({"ADMIN", "USER"})
     public ResponseEntity<Product> getProductById(@PathVariable UUID id) {
         Product product = productService.getProductById(id);
         return ResponseEntity.ok(product);
@@ -63,7 +63,7 @@ public class ProductController {
      * Search product IDs by name - Any authenticated user
      */
     @GetMapping("/search/ids")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @RequireRole({"ADMIN", "USER"})
     public List<UUID> searchProductIdsByName(@RequestParam String name) {
         return productService.searchProductIdsByName(name);
     }
@@ -72,7 +72,7 @@ public class ProductController {
      * Search products using Elasticsearch - Any authenticated user
      */
     @GetMapping("/search")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    // @RequireRole({"ADMIN", "USER"}) // Tạm comment để test tải
     public ResponseEntity<List<Product>> searchProducts(@RequestParam String name) {
         List<Product> products = productService.searchProductsByName(name);
         return ResponseEntity.ok(products);
@@ -82,7 +82,7 @@ public class ProductController {
      * Get product by name - Any authenticated user
      */
     @GetMapping("/by-name")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @RequireRole({"ADMIN", "USER"})
     public ResponseEntity<?> getProductByName(@RequestParam String name) {
         Optional<Product> productOptional = productService.getProductByName(name);
 
