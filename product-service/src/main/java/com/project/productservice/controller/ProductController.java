@@ -1,11 +1,15 @@
 package com.project.productservice.controller;
 
+import com.project.productservice.dto.ProductSearchRequest;
+import com.project.productservice.dto.ProductSearchResponse;
+
 import com.project.productservice.entity.Product;
 import com.project.productservice.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 
 import java.util.List;
 import java.util.Optional;
@@ -93,6 +97,28 @@ public class ProductController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body("Không tìm thấy sản phẩm với tên: " + name);
         }
+    }
+
+    /**
+     * TÌM KIẾM NÂNG CAO VỚI FILTER + FACET
+     * POST /api/products/search/advanced
+     */
+    @PostMapping("/search/advanced")
+    public ResponseEntity<ProductSearchResponse> advancedSearch(@RequestBody ProductSearchRequest request) {
+        ProductSearchResponse response = productService.searchWithFiltersAndFacets(request);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * AUTOCOMPLETE - Gợi ý tìm kiếm
+     * GET /api/products/search/autocomplete?q=lap&limit=10
+     */
+    @GetMapping("/search/autocomplete")
+    public ResponseEntity<List<String>> autocomplete(
+            @RequestParam String q,
+            @RequestParam(defaultValue = "10") int limit) {
+        List<String> suggestions = productService.getAutocompleteSuggestions(q, limit);
+        return ResponseEntity.ok(suggestions);
     }
 
 }

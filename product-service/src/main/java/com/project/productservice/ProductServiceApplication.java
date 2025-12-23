@@ -25,6 +25,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 )
 public class ProductServiceApplication {
 
+    //hello
     public static void main(String[] args) {
         SpringApplication.run(ProductServiceApplication.class, args);
     }

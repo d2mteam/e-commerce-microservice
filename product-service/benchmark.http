@@ -1,0 +1,32 @@
+### 1. Test Elasticsearch endpoint
+GET http://localhost:8080/api/products/search?name=test
+
+###
+
+### 2. Test PostgreSQL endpoint (tìm IDs)
+GET http://localhost:8080/api/products/search/ids?name=test
+
+###
+
+### 3. Test Advanced Search (POST)
+POST http://localhost:8080/api/products/search/advanced
+Content-Type: application/json
+
+{
+  "keyword": "test",
+  "page": 0,
+  "size": 10
+}
+
+###
+
+### 4. Tạo sản phẩm test
+POST http://localhost:8080/api/products
+Content-Type: application/json
+
+{
+  "productName": "Test Laptop Dell",
+  "productPrice": 1500.00,
+  "productDescription": "Laptop test for benchmark",
+  "categoryName": "Laptop"
+}
