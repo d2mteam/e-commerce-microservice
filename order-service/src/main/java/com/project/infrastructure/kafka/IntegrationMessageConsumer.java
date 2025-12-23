@@ -3,6 +3,7 @@ package com.project.infrastructure.kafka;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.akka.order.OrderGateway;
+import com.project.integration.message.PaymentResult;
 import com.project.integration.message.ProductReleaseReply;
 import com.project.integration.message.ProductReserveReply;
 import lombok.RequiredArgsConstructor;
@@ -55,6 +56,20 @@ public class IntegrationMessageConsumer {
             if (ProductReleaseReply.class.getSimpleName().equals(eventType)) {
                 ProductReleaseReply reply = objectMapper.convertValue(data, ProductReleaseReply.class);
                 log.info("Release reply received order={} product={} result={}", reply.orderId(), reply.productId(), reply.result());
+                ack.acknowledge();
+                return;
+            }
+
+            if (PaymentResult.class.getSimpleName().equals(eventType)) {
+                PaymentResult result = objectMapper.convertValue(data, PaymentResult.class);
+                if (result.status() == PaymentResult.Status.SUCCESS) {
+                    orderGateway.markPaid(result.orderId(), result.userId()).toCompletableFuture().join();
+                    log.info("Payment SUCCESS order={}", result.orderId());
+                } else {
+                    orderGateway.cancelOrder(result.orderId(), result.userId(), result.reason() != null ? result.reason() : "PAYMENT_FAILED")
+                            .toCompletableFuture().join();
+                    log.info("Payment FAILED order={} reason={}", result.orderId(), result.reason());
+                }
                 return;
             }
 

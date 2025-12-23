@@ -136,3 +136,11 @@ Hướng dẫn nhanh để chạy dịch vụ và gọi API (không cần UI).
 - Kafka topic: order-service gửi request tới `inventory-service`, inventory gửi reply về `order-service`.
 - Idempotency: key = `eventType:correlationId`; duplicate message sẽ bị bỏ qua, chỉ ack khi xử lý thành công.
 - Event log dùng Akka Persistence Query, trả `eventType`, `sequenceNumber`, `timestamp`, `event` JSON.
+
+## Mock Payment service (port 8083)
+- Nhận `PaymentRequested` qua Kafka topic `payment-service`, tạo invoice PENDING (H2, TTL cấu hình `payment.expiry-seconds`).
+- API:
+  - `POST /payments/pay` `{ "orderId": "<uuid>" }` → mark SUCCESS, emit `PaymentResult` SUCCESS về `order-service`.
+  - `POST /payments/config/timeout` `{ "seconds": <long> }` → thay đổi TTL.
+  - `GET /payments/{orderId}` → xem invoice (PENDING/SUCCESS/FAILED, expiresAt).
+- Scheduler tự động hết hạn invoice PENDING → emit `PaymentResult` FAILED (reason TIMEOUT).

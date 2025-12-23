@@ -16,7 +16,9 @@ public class DefaultTopicMapper implements TopicMapper {
             ProductReserveRequest.class.getSimpleName(), List.of("inventory-service"),
             ProductReleaseRequest.class.getSimpleName(), List.of("inventory-service"),
             ProductReserveReply.class.getSimpleName(), List.of("order-service"),
-            ProductReleaseReply.class.getSimpleName(), List.of("order-service")
+            ProductReleaseReply.class.getSimpleName(), List.of("order-service"),
+            com.project.integration.message.PaymentRequested.class.getSimpleName(), List.of("payment-service"),
+            com.project.integration.message.PaymentResult.class.getSimpleName(), List.of("order-service")
     );
 
     @Override

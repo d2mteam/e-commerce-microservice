@@ -80,6 +80,17 @@ public class OrderGateway {
         return unwrap(stage);
     }
 
+    public CompletionStage<OrderState> markPaid(UUID orderId, UUID userId) {
+        log.info("OrderGateway#markPaid orderId={} userId={}", orderId, userId);
+        ActorRef<OrderCommand> actor = actorFor(orderId);
+        CompletionStage<StatusReply<OrderState>> stage = AskPattern.ask(
+                actor,
+                replyTo -> new OrderCommand.MarkPaid(orderId, userId, replyTo),
+                timeout,
+                actorSystem.scheduler());
+        return unwrap(stage);
+    }
+
     public CompletionStage<OrderState> getState(UUID orderId) {
         log.info("OrderGateway#getState orderId={}", orderId);
         ActorRef<OrderCommand> actor = actorFor(orderId);
