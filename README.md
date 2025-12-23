@@ -35,6 +35,41 @@ Hướng dẫn nhanh để chạy dịch vụ và gọi API (không cần UI).
 - Lấy trạng thái: `GET /orders/{orderId}`
 - Lấy event log: `GET /orders/{orderId}/events?limit=50`
 
+### Chi tiết request/response (Order)
+- `POST /orders`
+  - Body: `{ "userId": "<uuid>", "orderDetails": [ { "productId": "<uuid>", "quantity": <int>, "price": <double> } ] }`
+  - Trả về: JSON `OrderState`  
+    ```
+    {
+      "orderId": "uuid",
+      "userId": "uuid",
+      "orderDetails": [ { "productId": "uuid", "quantity": int, "price": number } ],
+      "status": "CREATED|CONFIRMED|OUT_OF_STOCK|CANCELLED|PAID",
+      "inventoryId": "uuid|null",
+      "createdAt": "ISO_INSTANT",
+      "paidAt": "ISO_INSTANT|null"
+    }
+    ```
+- `DELETE /orders`
+  - Body: `{ "aggregateId": "<orderId>", "userId": "<uuid>", "reason": "<string>" }`
+  - Trả về: `OrderState` (như trên, status thường = CANCELLED).
+- `GET /orders/{orderId}`
+  - Trả về: `OrderState`.
+- `GET /orders/{orderId}/events?limit=50`
+  - Trả về: mảng event  
+    ```
+    [
+      {
+        "persistenceId": "Order|<uuid>",
+        "eventType": "<class name>",
+        "sequenceNumber": long,
+        "timestamp": "ISO_INSTANT",
+        "event": { ...event payload... }
+      },
+      ...
+    ]
+    ```
+
 ## API Inventory (cổng mặc định 2000)
 - Tạo inventory: `POST /api/inventory/create`
   ```bash
@@ -64,7 +99,48 @@ Hướng dẫn nhanh để chạy dịch vụ và gọi API (không cần UI).
 - Lấy trạng thái: `GET /api/inventory/{inventoryId}`
 - Lấy event log: `GET /api/inventory/{inventoryId}/events?limit=50`
 
+### Chi tiết request/response (Inventory)
+- `POST /api/inventory/create`
+  - Body: `{ "inventoryId": "<uuid optional>", "sku": "<string>", "initialQuantity": <int> }`
+  - Trả về: JSON `InventoryState`
+    ```
+    {
+      "inventoryId": "uuid",
+      "sku": "string",
+      "availableQuantity": int,
+      "reservedQuantity": int,
+      "reservations": { "<orderId>": int } | null,
+      "active": true|false,
+      "createdAt": "ISO_INSTANT",
+      "updatedAt": "ISO_INSTANT"
+    }
+    ```
+- `POST /api/inventory/add-stock`
+  - Body: `{ "inventoryId": "<uuid>", "quantity": <int> }`
+  - Trả về: `InventoryState` sau khi add stock.
+- `POST /api/inventory/reserve`
+  - Body: `{ "inventoryId": "<uuid>", "orderId": "<uuid>", "quantity": <int>, "correlationId": "<optional>" }`
+  - Trả về: `InventoryState` sau khi reserve.
+- `POST /api/inventory/release`
+  - Body: `{ "inventoryId": "<uuid>", "orderId": "<uuid>" }`
+  - Trả về: `InventoryState` sau khi release.
+- `POST /api/inventory/cancel-reservation`
+  - Body: `{ "inventoryId": "<uuid>", "orderId": "<uuid>" }`
+  - Trả về: `InventoryState` sau khi cancel reservation.
+- `GET /api/inventory/{inventoryId}`
+  - Trả về: `InventoryState` hiện tại.
+- `GET /api/inventory/{inventoryId}/events?limit=50`
+  - Trả về: mảng event (tương tự order events, có `eventType`, `sequenceNumber`, `timestamp`, `event` JSON).
+
 ## Ghi chú
 - Kafka topic: order-service gửi request tới `inventory-service`, inventory gửi reply về `order-service`.
 - Idempotency: key = `eventType:correlationId`; duplicate message sẽ bị bỏ qua, chỉ ack khi xử lý thành công.
 - Event log dùng Akka Persistence Query, trả `eventType`, `sequenceNumber`, `timestamp`, `event` JSON.
+
+## Mock Payment service (port 8083)
+- Nhận `PaymentRequested` qua Kafka topic `payment-service`, tạo invoice PENDING (H2, TTL cấu hình `payment.expiry-seconds`).
+- API:
+  - `POST /payments/pay` `{ "orderId": "<uuid>" }` → mark SUCCESS, emit `PaymentResult` SUCCESS về `order-service`.
+  - `POST /payments/config/timeout` `{ "seconds": <long> }` → thay đổi TTL.
+  - `GET /payments/{orderId}` → xem invoice (PENDING/SUCCESS/FAILED, expiresAt).
+- Scheduler tự động hết hạn invoice PENDING → emit `PaymentResult` FAILED (reason TIMEOUT).

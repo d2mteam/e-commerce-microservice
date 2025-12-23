@@ -18,6 +18,7 @@ import com.project.integration.IntegrationMessage;
 import com.project.integration.IntegrationOutboxPublisher;
 import com.project.integration.message.ProductReleaseRequest;
 import com.project.integration.message.ProductReserveRequest;
+import com.project.integration.message.PaymentRequested;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -99,7 +100,10 @@ public final class OrderBehavior extends EventSourcedBehaviorWithEnforcedReplies
         }
         var event = new OrderEvent.InventoryConfirmed(cmd.inventoryId(), OffsetDateTime.now());
         return Effect().persist(event)
-                .thenReply(cmd.replyTo(), StatusReply::success);
+                .thenReply(cmd.replyTo(), newState -> {
+                    emitPaymentRequest(newState);
+                    return StatusReply.success(newState);
+                });
     }
 
     private ReplyEffect<OrderEvent, OrderState> handleOutOfStock(OrderState state,
@@ -214,5 +218,25 @@ public final class OrderBehavior extends EventSourcedBehaviorWithEnforcedReplies
                     ))
                     .build());
         }
+    }
+
+    private void emitPaymentRequest(OrderState state) {
+        if (state.orderDetails() == null || state.orderDetails().isEmpty()) {
+            return;
+        }
+        var total = state.orderDetails().stream()
+                .map(d -> d.getPrice().multiply(java.math.BigDecimal.valueOf(d.getQuantity())))
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+        String correlationId = state.orderId().toString();
+        var message = new PaymentRequested(state.orderId(), state.userId(), total, correlationId);
+        outboxPublisher.save(state.orderId(), IntegrationMessage.builder()
+                .type(PaymentRequested.class.getSimpleName())
+                .payload(Map.of(
+                        "orderId", message.orderId(),
+                        "userId", message.userId(),
+                        "amount", message.amount(),
+                        "correlationId", message.correlationId()
+                ))
+                .build());
     }
 }
