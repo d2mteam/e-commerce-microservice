@@ -14,7 +14,7 @@ import java.util.UUID;
 
 @RestController
 @AllArgsConstructor
-@RequestMapping("/orders")
+@RequestMapping("/api/orders")
 public class OrderController {
     private final ObjectMapper objectMapper;
     private final OrderGateway orderGateway;

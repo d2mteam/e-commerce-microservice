@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  eureka-server:
+    build: .
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
+    environment:
+      - JAVA_TOOL_OPTIONS=-Xmx256m -Xms256m
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+networks:
+  ecommerce-network:
+    name: ecommerce-network
+    driver: bridge

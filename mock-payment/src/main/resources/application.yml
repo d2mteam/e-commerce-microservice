@@ -5,7 +5,7 @@ spring:
   application:
     name: mock-payment
   datasource:
-    url: jdbc:postgresql://localhost:3001/mock-payment
+    url: jdbc:postgresql://localhost:3001/mock_payment_db
     driver-class-name: org.postgresql.Driver
     username: admin
     password: admin123
@@ -34,6 +34,13 @@ spring:
   jackson:
     default-property-inclusion: non_null
 
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
 payment:
   expiry-seconds: 600
 
@@ -44,3 +51,20 @@ logging:
         jdbc:
           core: DEBUG
     com.project: DEBUG
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+  datasource:
+    url: jdbc:postgresql://postgres:5432/mock_payment_db
+    username: admin
+    password: password
+  kafka:
+    bootstrap-servers: redpanda:19092
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka/

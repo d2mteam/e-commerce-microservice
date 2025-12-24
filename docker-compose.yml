@@ -1,0 +1,236 @@
+version: '3.8'
+
+services:
+  # ==========================================
+  # INFRASTRUCTURE (Cơ sở hạ tầng)
+  # ==========================================
+  
+  postgres:
+    image: postgres:15-alpine
+    container_name: postgres-core
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:latest
+    container_name: redpanda
+    command:
+      - redpanda start
+      - --overprovisioned
+      - --smp 1
+      - --memory 512M
+      - --reserve-memory 0M
+      - --node-id 0
+      - --check=false
+      - --kafka-addr=PLAINTEXT://0.0.0.0:9092,DOCKER://0.0.0.0:19092
+      - --advertise-kafka-addr=PLAINTEXT://localhost:9092,DOCKER://redpanda:19092
+    ports:
+      - "9092:9092"   # Host access
+      - "19092:19092" # Internal access
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy|OK'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.10
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    networks:
+      - ecommerce-network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - ecommerce-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+    networks:
+      - ecommerce-network
+
+  # ==========================================
+  # MIDDLEWARE (Dịch vụ trung gian)
+  # ==========================================
+
+  eureka-server:
+    build: ./eureka-server
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
+    environment:
+      - JAVA_TOOL_OPTIONS=-Xmx256m -Xms256m
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0.0
+    container_name: keycloak
+    command: start-dev
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: admin
+      KC_DB_PASSWORD: password
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+
+  # ==========================================
+  # MICROSERVICES (Ứng dụng chính)
+  # ==========================================
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    ports:
+      - "8888:8888"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=http://keycloak:8080/realms/ecommerce-realm
+      - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI=http://keycloak:8080/realms/ecommerce-realm/protocol/openid-connect/certs
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+    networks:
+      - ecommerce-network
+
+  inventory-service:
+    build: ./inventory-service
+    container_name: inventory-service
+    ports:
+      - "2000:2000"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/inventory-service?timezone=Asia/Ho_Chi_Minh
+      - SPRING_DATASOURCE_USERNAME=admin
+      - SPRING_DATASOURCE_PASSWORD=password
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=redpanda:19092
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - JAVA_TOOL_OPTIONS=-Duser.timezone=Asia/Ho_Chi_Minh
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+
+  order-service:
+    build: ./order-service
+    container_name: order-service
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/order-service?timezone=Asia/Ho_Chi_Minh
+      - SPRING_DATASOURCE_USERNAME=admin
+      - SPRING_DATASOURCE_PASSWORD=password
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=redpanda:19092
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - JAVA_TOOL_OPTIONS=-Duser.timezone=Asia/Ho_Chi_Minh
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+
+  product-service:
+    build: ./product-service
+    container_name: product-service
+    ports:
+      - "8082:8081" # Map port 8082 (host) -> 8081 (container) to avoid conflict with Order Service
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/search_db?timezone=Asia/Ho_Chi_Minh
+      - SPRING_DATASOURCE_USERNAME=admin
+      - SPRING_DATASOURCE_PASSWORD=password
+      - SPRING_ELASTICSEARCH_URIS=http://elasticsearch:9200
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - JAVA_TOOL_OPTIONS=-Duser.timezone=Asia/Ho_Chi_Minh
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_started
+    networks:
+      - ecommerce-network
+
+  mock-payment:
+    build: ./mock-payment
+    container_name: mock-payment
+    ports:
+      - "8083:8080" # WARNING: Host 8083 maps to Container 8080
+    environment:
+      - SERVER_PORT=8080
+      - SPRING_PROFILES_ACTIVE=docker
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
+      - JAVA_TOOL_OPTIONS=-Duser.timezone=Asia/Ho_Chi_Minh
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+
+volumes:
+  postgres_data:
+
+networks:
+  ecommerce-network:
+    driver: bridge

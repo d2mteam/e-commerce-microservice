@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs -I {} bash -c 'echo \"\"=== {} ===\"\" && head -10 {}')",
+      "Bash(ls:*)",
+      "Bash(dir:*)"
+    ]
+  }
+}
