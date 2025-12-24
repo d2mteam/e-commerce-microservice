@@ -1,23 +1,5 @@
 # e-commerce-microservice (Order & Inventory)
 
-Hướng dẫn nhanh để chạy dịch vụ và gọi API (không cần UI).
-
-## Chạy dịch vụ
-1) Khởi động Postgres và Kafka (xem docker-compose tại từng service). Port mặc định:
-   - order-service DB: localhost:1000/order-service
-   - inventory-service DB: localhost:2001/inventory-service
-   - Kafka: localhost:9092
-2) Tạo schema Akka persistence (journal/snapshot) nếu chưa có:
-   ```bash
-   psql -h localhost -p 1000 -U admin -d order-service -f akka-persistence-schema.sql
-   psql -h localhost -p 2001 -U admin -d inventory-service -f akka-persistence-schema.sql
-   ```
-3) Chạy service:
-   ```bash
-   cd order-service && ./gradlew bootRun
-   cd inventory-service && ./gradlew bootRun
-   ```
-
 ## API Order (cổng mặc định 8081)
 - Tạo order: `POST /orders`
   ```bash
@@ -148,4 +130,4 @@ Hướng dẫn nhanh để chạy dịch vụ và gọi API (không cần UI).
     Body: `{ "seconds": <long> }` → cập nhật TTL cho invoice mới.
   - `GET /payments/{orderId}` → trả invoice JSON:  
     `{ "orderId", "userId", "amount", "status": "PENDING|SUCCESS|FAILED", "correlationId", "createdAt", "expiresAt" }`
-- Scheduler (5s) tự hết hạn invoice PENDING → mark FAILED, emit `PaymentResult` FAILED (reason TIMEOUT) → topic `order-service`.
+- Scheduler (10p) tự hết hạn invoice PENDING → mark FAILED, emit `PaymentResult` FAILED (reason TIMEOUT) → topic `order-service`.
