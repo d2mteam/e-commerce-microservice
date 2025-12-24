@@ -96,6 +96,30 @@ spring:
                   factor: 2
                   basedOnPreviousValue: false
 
+        - id: mock-payment
+          uri: lb://mock-payment
+          predicates:
+            - Path=/api/payments/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: paymentServiceCB
+                fallbackUri: forward:/fallback/mock-payment
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT
+                methods: GET,POST,PUT,DELETE
+                exceptions:
+                  - java.io.IOException
+                  - io.netty.channel.ConnectTimeoutException
+                  - java.util.concurrent.TimeoutException
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+                  basedOnPreviousValue: false
+
       globalcors:
         cors-configurations:
           '[/**]':
@@ -137,6 +161,8 @@ resilience4j:
         baseConfig: default
       inventoryServiceCB:
         baseConfig: default
+      paymentServiceCB:
+        baseConfig: default
   timelimiter:
     configs:
       default:
@@ -148,6 +174,8 @@ resilience4j:
         timeoutDuration: 10s     # Order - complex operations, needs more time
       inventoryServiceCB:
         timeoutDuration: 5s      # Inventory - moderate operations
+      paymentServiceCB:
+        timeoutDuration: 10s
 
 eureka:
   client:
