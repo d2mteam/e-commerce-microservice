@@ -36,7 +36,7 @@ public class SecurityConfig {
                 // Public endpoints
                 .pathMatchers("/actuator/**").permitAll()
                 .pathMatchers("/eureka/**").permitAll()
-                .pathMatchers("/api/products/search/**").permitAll()
+                .pathMatchers("/api/products/**").permitAll()
                 .pathMatchers("/api/orders/**").permitAll() // Mở public order để test tải
 
                 // All other requests require authentication

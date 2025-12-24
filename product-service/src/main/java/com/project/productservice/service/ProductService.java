@@ -40,6 +40,7 @@ public class ProductService {
      */
 
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "products", key = "#id")
     public Product updateProduct(UUID id, Product productDetails) {
         Product existingProduct = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Product not found with id: " + id));
@@ -65,6 +66,7 @@ public class ProductService {
      * XÓA: Xóa ở cả hai nơi
      */
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "products", key = "#id")
     public void deleteProduct(UUID id) {
         // Xóa khỏi SQL
         productRepository.deleteById(id);
@@ -84,9 +86,24 @@ public class ProductService {
     /**
      * LẤY THEO ID: Chỉ dùng SQL (Nguồn chính)
      */
+    @org.springframework.cache.annotation.Cacheable(value = "products", key = "#id")
+    @Transactional
     public Product getProductById(UUID id) {
-        return productRepository.findById(id)
+        System.out.println("DEBUG: Cache Miss for Product ID: " + id); // Log để kiểm tra
+        Product entity = productRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Product not found with id: " + id));
+
+        // DETACH & COPY: Tạo một object mới hoàn toàn, cắt đứt quan hệ với Hibernate
+        // Điều này đảm bảo Redis chỉ cache dữ liệu thuần (POJO), không phải Proxy
+        return Product.builder()
+                .productId(entity.getProductId())
+                .productName(entity.getProductName())
+                .productPrice(entity.getProductPrice())
+                .productDescription(entity.getProductDescription())
+                .categoryName(entity.getCategoryName())
+                .productImages(new java.util.ArrayList<>(entity.getProductImages())) // Copy list -> Force Load
+                .attributes(new java.util.HashMap<>(entity.getAttributes()))         // Copy map -> Force Load
+                .build();
     }
 
     public List<UUID> searchProductIdsByName(String keyword) {

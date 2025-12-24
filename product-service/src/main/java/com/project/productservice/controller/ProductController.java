@@ -53,7 +53,7 @@ public class ProductController {
      * Get product by ID - Any authenticated user (admin or user)
      */
     @GetMapping("/{id}")
-    @RequireRole({"ADMIN", "USER"})
+    //@RequireRole({"ADMIN", "USER"})
     public ResponseEntity<Product> getProductById(@PathVariable UUID id) {
         Product product = productService.getProductById(id);
         return ResponseEntity.ok(product);

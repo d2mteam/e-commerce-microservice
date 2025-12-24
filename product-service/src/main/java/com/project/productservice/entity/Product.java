@@ -11,6 +11,7 @@ import org.springframework.data.elasticsearch.annotations.FieldType;
 import org.springframework.data.annotation.Id;
 
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -22,7 +23,8 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 @Document(indexName = "products")
-public class Product {
+public class Product implements Serializable {
+    private static final long serialVersionUID = 1L;
 
     @Id
     @jakarta.persistence.Id
@@ -47,14 +49,14 @@ public class Product {
     private String categoryName;
 
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "product_images", joinColumns = @JoinColumn(name = "product_id"))
     @Column(name = "image_url")
     @Field(type = FieldType.Keyword)
     private List<String> productImages;
 
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "product_attributes", joinColumns = @JoinColumn(name = "product_id"))
     @MapKeyColumn(name = "attr_key")
     @Column(name = "attr_value")

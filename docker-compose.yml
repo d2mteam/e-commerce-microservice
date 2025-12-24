@@ -4,10 +4,12 @@ services:
   # ==========================================
   # INFRASTRUCTURE (Cơ sở hạ tầng)
   # ==========================================
-  
+
+  # --- PostgreSQL (Shared Database) ---
   postgres:
     image: postgres:15-alpine
     container_name: postgres-core
+    command: postgres -c max_connections=200
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: password
@@ -24,6 +26,53 @@ services:
       timeout: 5s
       retries: 5
 
+  # --- Redis (Cache) ---
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- MongoDB (For Product Service) ---
+  mongo:
+    image: mongo:latest
+    container_name: mongo_db
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: secret123
+      MONGO_INITDB_DATABASE: product-service
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - ecommerce-network
+
+  mongo-express:
+    image: mongo-express:latest
+    container_name: mongo_express
+    ports:
+      - "8085:8081" # Changed to 8085 to avoid conflict with Order Service (8081)
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongo
+      - ME_CONFIG_MONGODB_PORT=27017
+      - ME_CONFIG_BASICAUTH_USERNAME=admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=password
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=admin
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=secret123
+    depends_on:
+      - mongo
+    networks:
+      - ecommerce-network
+
+  # --- Redpanda (Kafka Compatible) ---
   redpanda:
     image: docker.redpanda.com/redpandadata/redpanda:latest
     container_name: redpanda
@@ -37,6 +86,8 @@ services:
       - --check=false
       - --kafka-addr=PLAINTEXT://0.0.0.0:9092,DOCKER://0.0.0.0:19092
       - --advertise-kafka-addr=PLAINTEXT://localhost:9092,DOCKER://redpanda:19092
+      - --pandaproxy-addr=0.0.0.0:8082
+      - --advertise-pandaproxy-addr=redpanda:8082
     ports:
       - "9092:9092"   # Host access
       - "19092:19092" # Internal access
@@ -48,6 +99,19 @@ services:
       timeout: 5s
       retries: 5
 
+  redpanda-console:
+    image: docker.redpanda.com/redpandadata/console:latest
+    container_name: redpanda-console
+    ports:
+      - "8089:8080"
+    environment:
+      - KAFKA_BROKERS=redpanda:19092
+    depends_on:
+      - redpanda
+    networks:
+      - ecommerce-network
+
+  # --- Elasticsearch (For Product Search) ---
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.17.10
     container_name: elasticsearch
@@ -59,6 +123,7 @@ services:
     networks:
       - ecommerce-network
 
+  # --- Observability (Prometheus, Grafana, Loki, Promtail) ---
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
@@ -66,6 +131,26 @@ services:
       - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
       - "9090:9090"
+    networks:
+      - ecommerce-network
+
+  loki:
+    image: grafana/loki:2.9.4
+    container_name: loki
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - ecommerce-network
+
+  promtail:
+    image: grafana/promtail:2.9.4
+    container_name: promtail
+    volumes:
+      - /var/log:/var/log
+      - ./docker/grafana/promtail.yaml:/etc/promtail/config.yml
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: -config.file=/etc/promtail/config.yml
     networks:
       - ecommerce-network
 
@@ -78,6 +163,7 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin
     depends_on:
       - prometheus
+      - loki
     networks:
       - ecommerce-network
 
@@ -191,18 +277,21 @@ services:
     build: ./product-service
     container_name: product-service
     ports:
-      - "8082:8081" # Map port 8082 (host) -> 8081 (container) to avoid conflict with Order Service
+      - "8082:8081" # Map port 8082 (host) -> 8081 (container)
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/search_db?timezone=Asia/Ho_Chi_Minh
       - SPRING_DATASOURCE_USERNAME=admin
       - SPRING_DATASOURCE_PASSWORD=password
+      - SPRING_DATA_MONGODB_URI=mongodb://admin:secret123@mongo:27017/product-service?authSource=admin
       - SPRING_ELASTICSEARCH_URIS=http://elasticsearch:9200
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - JAVA_TOOL_OPTIONS=-Duser.timezone=Asia/Ho_Chi_Minh
     depends_on:
       postgres:
         condition: service_healthy
+      mongo:
+        condition: service_started
       eureka-server:
         condition: service_healthy
       elasticsearch:
@@ -214,10 +303,13 @@ services:
     build: ./mock-payment
     container_name: mock-payment
     ports:
-      - "8083:8080" # WARNING: Host 8083 maps to Container 8080
+      - "8083:8080" # Host 8083 maps to Container 8080
     environment:
       - SERVER_PORT=8080
       - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/mock_payment_db?timezone=Asia/Ho_Chi_Minh
+      - SPRING_DATASOURCE_USERNAME=admin
+      - SPRING_DATASOURCE_PASSWORD=password
       - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
       - JAVA_TOOL_OPTIONS=-Duser.timezone=Asia/Ho_Chi_Minh
     depends_on:
@@ -230,6 +322,7 @@ services:
 
 volumes:
   postgres_data:
+  mongo_data:
 
 networks:
   ecommerce-network:
