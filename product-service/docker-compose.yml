@@ -1,49 +1,29 @@
-version: '3'
+version: '3.8'
+
 services:
-  # --- Mongo cho Product Service ---
-  mongo:
-    image: mongo:latest
-    container_name: mongo_db
-    ports:
-      - "27017:27017"
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: secret123
-      MONGO_INITDB_DATABASE: mydatabase
-    volumes:
-      - mongo-data:/data/db
-    restart: unless-stopped
-
-  mongo-express:
-    image: mongo-express:latest
-    container_name: mongo_express
-    ports:
-      - "8081:8081"
-    environment:
-      - ME_CONFIG_MONGODB_SERVER=mongo
-      - ME_CONFIG_MONGODB_PORT=27017
-      - ME_CONFIG_BASICAUTH_USERNAME=admin
-      - ME_CONFIG_BASICAUTH_PASSWORD=password
-    depends_on:
-      - mongo
-    restart: unless-stopped
-
-  # --- PostgreSQL cho Search Service ---
   postgres:
-    image: postgres:16
-    container_name: postgres_db
+    image: postgres:15
+    container_name: product_postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: 1234
       POSTGRES_DB: search_db
-      TZ: Asia/Ho_Chi_Minh
-      PGTZ: Asia/Ho_Chi_Minh
     ports:
       - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
 
-volumes:
-  mongo-data:
-  pgdata:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.2
+    container_name: product_elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    restart: unless-stopped

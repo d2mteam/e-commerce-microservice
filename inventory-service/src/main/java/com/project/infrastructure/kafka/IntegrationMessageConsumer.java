@@ -24,7 +24,7 @@ public class IntegrationMessageConsumer {
     private final InventoryGateway inventoryGateway;
     private final MessageDeduplicator deduplicator;
 
-    @KafkaListener(topics = "inventory-service", groupId = "inventory-service")
+    @KafkaListener(topics = "inventory-service", groupId = "inventory-service", concurrency = "1")
     public void consume(ConsumerRecord<String, String> record, Acknowledgment ack) {
         try {
             Map<String, Object> wrapper = objectMapper.readValue(record.value(), new TypeReference<>() {});

@@ -4,7 +4,6 @@ server:
 spring:
   application:
     name: product-service
-
   datasource:
     url: jdbc:postgresql://localhost:5432/search_db?currentSchema=public&serverTimezone=Asia/Ho_Chi_Minh
     username: admin

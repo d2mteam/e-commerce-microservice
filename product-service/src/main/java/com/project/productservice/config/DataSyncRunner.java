@@ -7,6 +7,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
 @Component
@@ -23,28 +26,29 @@ public class DataSyncRunner implements CommandLineRunner {
     public void run(String... args) throws Exception {
         log.info("Bắt đầu đồng bộ dữ liệu từ PostgreSQL sang Elasticsearch...");
 
-        // Đếm số lượng trong Elasticsearch
         long esCount = searchRepository.count();
-
-        // Đếm số lượng trong SQL
         long sqlCount = jpaRepository.count();
 
-        // Chỉ đồng bộ nếu số lượng không khớp
-        if (esCount != sqlCount) {
-            log.warn("Phát hiện không đồng bộ! SQL: {}, Elasticsearch: {}. Đang tiến hành đồng bộ...", sqlCount, esCount);
-
-            // Xóa tất cả trong Elasticsearch để làm sạch
-            searchRepository.deleteAll();
-
-            // Đọc tất cả từ SQL
-            List<Product> allProducts = jpaRepository.findAll();
-
-            // Ghi tất cả vào Elasticsearch
-            searchRepository.saveAll(allProducts);
-
-            log.info("Đồng bộ hoàn tất! Đã index {} sản phẩm.", allProducts.size());
-        } else {
+        if (esCount == sqlCount) {
             log.info("Dữ liệu đã đồng bộ. ({} sản phẩm)", esCount);
+            return;
         }
+
+        log.warn("Phát hiện không đồng bộ! SQL: {}, Elasticsearch: {}. Đang tiến hành đồng bộ...", sqlCount, esCount);
+
+        // Xóa chỉ số cũ rồi ghi lại từ DB
+        searchRepository.deleteAll();
+
+        List<Product> allProducts;
+        try {
+            allProducts = jpaRepository.findAll();
+        } catch (Exception e) {
+            log.error("Không thể đọc dữ liệu từ PostgreSQL để đồng bộ (có thể do dữ liệu attributes không đúng định dạng JSON Map<String,String>). Bỏ qua đồng bộ, hãy làm sạch dữ liệu và chạy lại.", e);
+            return;
+        }
+
+        searchRepository.saveAll(allProducts);
+
+        log.info("Đồng bộ hoàn tất! Đã index {} sản phẩm.", allProducts.size());
     }
 }

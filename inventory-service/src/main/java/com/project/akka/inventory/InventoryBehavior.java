@@ -16,12 +16,14 @@ import com.project.integration.IntegrationMessage;
 import com.project.integration.IntegrationOutboxPublisher;
 import com.project.integration.message.ProductReleaseReply;
 import com.project.integration.message.ProductReserveReply;
+import lombok.extern.slf4j.Slf4j;
 
 import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+@Slf4j
 public final class InventoryBehavior extends EventSourcedBehaviorWithEnforcedReplies<InventoryCommand, InventoryEvent, InventoryState> {
 
     private final IntegrationOutboxPublisher outboxPublisher;
@@ -107,13 +109,20 @@ public final class InventoryBehavior extends EventSourcedBehaviorWithEnforcedRep
             emitReserveFailure(cmd, "Quantity must be positive");
             return Effect().reply(cmd.replyTo(), StatusReply.error("Quantity must be positive"));
         }
-        if (cmd.quantity() > state.availableQuantity()) {
-            emitReserveFailure(cmd, "Not enough stock");
-            return Effect().reply(cmd.replyTo(), StatusReply.error("Not enough stock to reserve"));
-        }
-        if (state.reservations() != null && state.reservations().containsKey(cmd.orderId())) {
-            emitReserveFailure(cmd, "Order already reserved");
-            return Effect().reply(cmd.replyTo(), StatusReply.error("Order already reserved"));
+
+        Integer existing =
+                state.reservations() == null ? null : state.reservations().get(cmd.orderId());
+
+        if (existing != null) {
+            if (existing == cmd.quantity()) {
+                // duplicate / retry hợp lệ
+                emitReserveSuccess(cmd);
+                return Effect().reply(cmd.replyTo(), StatusReply.success(state));
+            } else {
+                // cùng orderId nhưng khác quantity → conflict thật
+                emitReserveFailure(cmd, "Reservation conflict");
+                return Effect().reply(cmd.replyTo(), StatusReply.error("Reservation conflict"));
+            }
         }
 
         var event = new InventoryEvent.StockReserved(cmd.orderId(), cmd.quantity(), OffsetDateTime.now());

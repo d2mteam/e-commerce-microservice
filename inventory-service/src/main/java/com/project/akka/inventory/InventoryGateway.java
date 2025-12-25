@@ -27,7 +27,8 @@ public class InventoryGateway {
     private final IntegrationOutboxPublisher outboxPublisher;
 
     private final Map<UUID, ActorRef<InventoryCommand>> inventoryActors = new ConcurrentHashMap<>();
-    private final Duration timeout = Duration.ofSeconds(3);
+    // tăng timeout để tránh Ask timeout dưới tải cao
+    private final Duration timeout = Duration.ofSeconds(10);
 
     public CompletionStage<InventoryState> createInventory(UUID id, String sku, int initialQuantity) {
         log.info("InventoryGateway#create id={} sku={} initialQty={}", id, sku, initialQuantity);

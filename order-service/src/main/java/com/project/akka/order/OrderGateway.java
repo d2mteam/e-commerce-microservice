@@ -35,6 +35,11 @@ public class OrderGateway {
     public CompletionStage<OrderState> createOrder(UUID orderId,
                                                    UUID userId,
                                                    List<OrderDetail> details) {
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
         log.info("OrderGateway#create orderId={} userId={} details={}", orderId, userId, details);
         ActorRef<OrderCommand> actor = actorFor(orderId);
         CompletionStage<StatusReply<OrderState>> stage = AskPattern.ask(

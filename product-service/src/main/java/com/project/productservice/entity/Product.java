@@ -47,17 +47,15 @@ public class Product {
     private String categoryName;
 
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "product_images", joinColumns = @JoinColumn(name = "product_id"))
     @Column(name = "image_url")
     @Field(type = FieldType.Keyword)
     private List<String> productImages;
 
 
-    @ElementCollection
-    @CollectionTable(name = "product_attributes", joinColumns = @JoinColumn(name = "product_id"))
-    @MapKeyColumn(name = "attr_key")
-    @Column(name = "attr_value")
+    @Column(name = "attributes", columnDefinition = "jsonb")
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     @Field(type = FieldType.Object)
-    private Map<String, String> attributes;
+    private Map<String, Object> attributes;
 }
