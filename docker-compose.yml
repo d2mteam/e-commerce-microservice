@@ -1,0 +1,103 @@
+networks:
+  ecom-net:
+    driver: bridge
+    name: ecom-net
+    internal: true
+
+services:
+  eureka-server:
+    build:
+      context: ./eureka-server
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
+    networks:
+      - ecom-net
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+    container_name: api-gateway
+    depends_on:
+      - eureka-server
+    environment:
+      EUREKA_URI: http://eureka-server:8761/eureka/
+    ports:
+      - "8081:8081"
+    networks:
+      - ecom-net
+
+  order-db-1:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: order-service
+    networks:
+      - ecom-net
+
+  order-db-2:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: order-service
+    networks:
+      - ecom-net
+
+  order-db-3:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin123
+      POSTGRES_DB: order-service
+    networks:
+      - ecom-net
+
+  order-service-1:
+    build:
+      context: ./order-service
+    depends_on:
+      - order-db-1
+      - eureka-server
+    environment:
+      DB_HOST: order-db-1
+      DB_PORT: 5432
+      DB_USER: admin
+      DB_PASSWORD: admin123
+      EUREKA_URI: http://eureka-server:8761/eureka/
+    networks:
+      - ecom-net
+
+  order-service-2:
+    build:
+      context: ./order-service
+    depends_on:
+      - order-db-2
+      - eureka-server
+    environment:
+      DB_HOST: order-db-2
+      DB_PORT: 5432
+      DB_USER: admin
+      DB_PASSWORD: admin123
+      EUREKA_URI: http://eureka-server:8761/eureka/
+    networks:
+      - ecom-net
+
+  order-service-3:
+    build:
+      context: ./order-service
+    depends_on:
+      - order-db-3
+      - eureka-server
+    environment:
+      DB_HOST: order-db-3
+      DB_PORT: 5432
+      DB_USER: admin
+      DB_PASSWORD: admin123
+      EUREKA_URI: http://eureka-server:8761/eureka/
+    networks:
+      - ecom-net
