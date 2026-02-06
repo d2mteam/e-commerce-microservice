@@ -1,16 +1,11 @@
-# syntax=docker/dockerfile:1
-
-FROM eclipse-temurin:21-jdk AS builder
+FROM eclipse-temurin:21-jdk-alpine AS build
 WORKDIR /app
-COPY gradlew .
-COPY gradle gradle
-COPY build.gradle settings.gradle .
-RUN sed -i 's/\r$//' gradlew && chmod +x gradlew
-COPY src src
-RUN ./gradlew --no-daemon clean bootJar -x test
+COPY . .
+RUN ./gradlew clean bootJar -x test
 
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
-COPY --from=builder /app/build/libs/*.jar app.jar
-EXPOSE 8761
-ENTRYPOINT ["java","-jar","/app/app.jar"]
+# Install curl for healthcheck
+RUN apk add --no-cache curl
+COPY --from=build /app/build/libs/*.jar app.jar
+ENTRYPOINT ["java", "-jar", "app.jar"]

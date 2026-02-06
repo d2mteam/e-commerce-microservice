@@ -1,31 +1,224 @@
 server:
-  port: 8081
+  port: 8888
+
+rate-limit:
+  enabled: true
+  # Authenticated users (per User ID)
+  user-capacity: 100
+  user-refill-tokens: 100
+  # Anonymous users (per IP - higher for NAT)
+  ip-capacity: 500
+  ip-refill-tokens: 500
+  # Common
+  refill-duration: 60s
 
 spring:
   application:
     name: api-gateway
-  main:
-    web-application-type: reactive
   cloud:
     gateway:
+      httpclient:
+        connect-timeout: 3000
+        response-timeout: 5s
       discovery:
         locator:
-          enabled: true
+          enabled: false
           lower-case-service-id: true
+      # default-filters: []  <-- Xóa dòng này để tránh lỗi parser
       routes:
+        - id: product-service
+          uri: lb://product-service
+          predicates:
+            - Path=/api/products/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: productServiceCB
+                fallbackUri: forward:/fallback/product-service
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT
+                methods: GET,POST,PUT,DELETE
+                exceptions:
+                  - java.lang.Throwable
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+                  basedOnPreviousValue: false
+
+        - id: order-service
+          uri: lb://order-service
+          predicates:
+            - Path=/api/orders/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: orderServiceCB
+                fallbackUri: forward:/fallback/order-service
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT
+                methods: GET,POST,PUT,DELETE
+                exceptions:
+                  - java.io.IOException
+                  - io.netty.channel.ConnectTimeoutException
+                  - java.util.concurrent.TimeoutException
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+                  basedOnPreviousValue: false
+
+        - id: inventory-service
+          uri: lb://inventory-service
+          predicates:
+            - Path=/api/inventory/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: inventoryServiceCB
+                fallbackUri: forward:/fallback/inventory-service
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT
+                methods: GET,POST,PUT,DELETE
+                exceptions:
+                  - java.io.IOException
+                  - io.netty.channel.ConnectTimeoutException
+                  - java.util.concurrent.TimeoutException
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+                  basedOnPreviousValue: false
+
+        - id: mock-payment
+          uri: lb://mock-payment
+          predicates:
+            - Path=/api/payments/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: paymentServiceCB
+                fallbackUri: forward:/fallback/mock-payment
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY,SERVICE_UNAVAILABLE,GATEWAY_TIMEOUT
+                methods: GET,POST,PUT,DELETE
+                exceptions:
+                  - java.io.IOException
+                  - io.netty.channel.ConnectTimeoutException
+                  - java.util.concurrent.TimeoutException
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+                  basedOnPreviousValue: false
+
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:3000"
+              - "http://localhost:4200"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+            exposedHeaders:
+              - "Authorization"
+            maxAge: 3600
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/realms/ecommerce-realm
+          jwk-set-uri: http://localhost:8080/realms/ecommerce-realm/protocol/openid-connect/certs
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10000
+        permittedNumberOfCallsInHalfOpenState: 3
+        minimumNumberOfCalls: 5
+    instances:
+      productServiceCB:
+        baseConfig: default
+      orderServiceCB:
+        baseConfig: default
+      inventoryServiceCB:
+        baseConfig: default
+      paymentServiceCB:
+        baseConfig: default
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 5s
+    instances:
+      productServiceCB:
+        timeoutDuration: 3s      # Product - read operations, should be fast
+      orderServiceCB:
+        timeoutDuration: 10s     # Order - complex operations, needs more time
+      inventoryServiceCB:
+        timeoutDuration: 5s      # Inventory - moderate operations
+      paymentServiceCB:
+        timeoutDuration: 10s
 
 eureka:
   client:
     service-url:
-      defaultZone: http://eureka-server:8761/eureka/
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,gateway,info
+        include: health, info, gateway, prometheus, metrics
+  metrics:
+    distribution:
+      percentiles-histogram:
+        "[http.server.requests]": true
+  endpoint:
+    health:
+      show-details: always
 
 logging:
   level:
-    org.springframework.cloud.gateway: DEBUG
-    reactor.netty.http.client: INFO
+    root: INFO
+    org.springframework.cloud.gateway: INFO
+    org.springframework.cloud.gateway.filter.factory.RetryGatewayFilterFactory: TRACE
+    org.springframework.security: INFO
+    com.project: DEBUG # Chỉ debug code của chúng ta
+
+---
+# Docker profile
+spring:
+  config:
+    activate:
+      on-profile: docker
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://keycloak:8080/realms/ecommerce-realm
+          jwk-set-uri: http://keycloak:8080/realms/ecommerce-realm/protocol/openid-connect/certs
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka/

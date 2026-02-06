@@ -11,6 +11,7 @@ import org.springframework.data.elasticsearch.annotations.FieldType;
 import org.springframework.data.annotation.Id;
 
 
+import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -22,7 +23,8 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 @Document(indexName = "products")
-public class Product {
+public class Product implements Serializable {
+    private static final long serialVersionUID = 1L;
 
     @Id
     @jakarta.persistence.Id
@@ -54,8 +56,10 @@ public class Product {
     private List<String> productImages;
 
 
-    @Column(name = "attributes", columnDefinition = "jsonb")
-    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "product_attributes", joinColumns = @JoinColumn(name = "product_id"))
+    @MapKeyColumn(name = "attr_key")
+    @Column(name = "attr_value")
     @Field(type = FieldType.Object)
-    private Map<String, Object> attributes;
+    private Map<String, String> attributes;
 }

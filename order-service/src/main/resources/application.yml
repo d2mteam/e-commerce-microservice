@@ -1,12 +1,9 @@
 server:
-  port: ${SERVER_PORT:8082}
-  tomcat:
-    threads:
-      max: 50
+  port: 8081
 
 spring:
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    bootstrap-servers: localhost:9092
     consumer:
       enable-auto-commit: false
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
@@ -29,12 +26,9 @@ spring:
     name: order-service
 
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:1000}/order-service
-    username: ${DB_USER:admin}
-    password: ${DB_PASSWORD:admin123}
-    hikari:
-      maximum-pool-size: 5   # prod thường 5–20
-      minimum-idle: 2
+    url: jdbc:postgresql://localhost:1000/order-service?timezone=Asia/Ho_Chi_Minh
+    username: admin
+    password: admin123
   jpa:
     hibernate:
       ddl-auto: update
@@ -42,14 +36,26 @@ spring:
 eureka:
   client:
     service-url:
-      defaultZone: ${EUREKA_URI:http://localhost:8761/eureka/}
-    register-with-eureka: true
-    fetch-registry: true
+      defaultZone: http://localhost:8761/eureka/
   instance:
     prefer-ip-address: true
-    instance-id: ${HOSTNAME:${spring.application.name}}:${server.port}
 
-
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10000
+        permittedNumberOfCallsInHalfOpenState: 3
+        minimumNumberOfCalls: 5
+    instances:
+      paymentService:
+        baseConfig: default
+        slidingWindowSize: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30000    # 30s wait when open
+        permittedNumberOfCallsInHalfOpenState: 2
 
 logging:
   level:
@@ -57,4 +63,5 @@ logging:
       springframework:
         jdbc:
           core: DEBUG
+    io.github.resilience4j: DEBUG
     com.project: DEBUG
